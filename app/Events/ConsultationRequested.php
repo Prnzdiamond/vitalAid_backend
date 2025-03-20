@@ -25,7 +25,7 @@ class ConsultationRequested implements ShouldBroadcast
     public function broadcastOn()
     {
         Log::info("Broadcasting ConsultationRequested event!");
-        return new PrivateChannel('consultations'); // ✅ Use PrivateChannel
+        return new PrivateChannel('consultations'); // ✅ Use PrivteChannel
     }
 
     public function broadcastAs()
