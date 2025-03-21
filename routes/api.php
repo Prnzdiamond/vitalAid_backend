@@ -39,4 +39,5 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
 
 
 
+
 // Debug: Check if authentication works

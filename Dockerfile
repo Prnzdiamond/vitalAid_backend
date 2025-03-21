@@ -33,11 +33,7 @@ COPY . .
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 RUN chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
-# Copy the environment file before installing dependencies
-COPY .env .env
 
-# Manually set broadcasting driver to Reverb
-RUN echo "BROADCAST_DRIVER=reverb" >> /var/www/.env
 
 # Install Laravel dependencies (disable auto-discovery to avoid Pusher error)
 RUN composer install --no-dev --optimize-autoloader --no-scripts

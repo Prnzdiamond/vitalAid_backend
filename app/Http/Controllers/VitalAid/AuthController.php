@@ -136,6 +136,18 @@ class AuthController extends Controller
 
     public function user(Request $request)
     {
+
+        Log::info('User endpoint hit');
+
+        Log::info('User request received', [
+            'headers' => $request->headers->all(),
+            'token' => $request->bearerToken(),
+            'query_params' => $request->query(),
+            'body' => $request->all(),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
         return response()->json([
             'user' => $request->user(),
             'message' => 'User fetched successfully'
