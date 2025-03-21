@@ -33,14 +33,18 @@ COPY . .
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 RUN chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
-# Install Laravel dependencies
-RUN composer install --no-dev --optimize-autoloader
+# Install Laravel dependencies (disable auto-discovery to avoid Pusher error)
+RUN composer install --no-dev --optimize-autoloader --no-scripts
 
-# Clear Laravel cache (to prevent stale config issues)
+# Ensure Reverb is used instead of Pusher
+RUN echo "BROADCAST_DRIVER=reverb" >> /var/www/.env
+
+# Clear and re-cache Laravel configurations
 RUN php artisan config:clear \
     && php artisan cache:clear \
     && php artisan route:clear \
-    && php artisan view:clear
+    && php artisan view:clear \
+    && php artisan package:discover
 
 # Expose PHP-FPM port
 EXPOSE 9000
