@@ -1,0 +1,18 @@
+services:
+  - name: vitalaid-backend
+    type: web
+    plan: free
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_KEY
+        value: your-app-key
+      - key: DB_CONNECTION
+        value: mongodb
+      - key: DB_URI
+        value: your-mongodb-uri
+    dockerfilePath: Dockerfile  # Ensure this is correct
+    dockerContext: .  # Add this line if needed
+    region: oregon
+    autoDeploy: true
+    healthCheckPath: /api/health
