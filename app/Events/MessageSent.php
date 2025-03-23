@@ -32,7 +32,7 @@ class MessageSent implements ShouldBroadcast
     public function broadcastOn()
     {
         Log::info("Broadcasting messages", $this->message);
-        return new Channel('consultations.' . $this->consultation->id);
+        return new PrivateChannel('consultations.' . $this->consultation->id);
     }
 
     public function broadcastAs()
