@@ -8,7 +8,7 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
-// ✅ Add the "consultations" channel
+// ✅ Add the "consultations" channe
 Broadcast::channel('consultations', function ($user) {
     return [
         'id' => $user->id,
