@@ -1,7 +1,7 @@
 # Use official PHP image
 FROM php:8.2-fpm
 
-# Install dependencies
+# Install dependencies and PHP extensions
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
@@ -10,8 +10,13 @@ RUN apt-get update && apt-get install -y \
     unzip \
     git \
     curl \
+    libssl-dev \
+    pkg-config \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install gd pdo pdo_mysql
+
+# Install MongoDB extension
+RUN pecl install mongodb && echo "extension=mongodb.so" > /usr/local/etc/php/conf.d/mongodb.ini
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
