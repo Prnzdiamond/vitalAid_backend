@@ -1,35 +1,31 @@
+# Use official PHP 8.2 with necessary extensions
 FROM php:8.2-fpm
-
-# Set working directory
-WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    curl \
-    zip \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libmongocrypt-dev \
     unzip \
     git \
-    libpq-dev \
-    libonig-dev \
-    && docker-php-ext-install pdo pdo_mysql mbstring
+    curl
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# Install PHP extensions
+RUN pecl install mongodb \
+    && docker-php-ext-enable mongodb
 
-# Copy application files
+# Set working directory
+WORKDIR /var/www/html
+
+# Copy Laravel project files
 COPY . .
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
+# Install Composer dependencies
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+RUN composer install --no-dev --optimize-autoloader
 
-# Install Node.js dependencies and build assets
-RUN npm ci && npm run build
-
-# Set permissions
-RUN chown -R www-data:www-data /app
-
-# Expose port
+# Expose the necessary ports
 EXPOSE 9000
 
-# Start PHP-FPM
+# Start Laravel
 CMD ["php-fpm"]
