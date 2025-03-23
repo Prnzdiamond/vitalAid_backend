@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y \
 # Install MongoDB extension
 RUN pecl install mongodb && echo "extension=mongodb.so" > /usr/local/etc/php/conf.d/mongodb.ini
 
+
+
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
@@ -26,6 +28,9 @@ WORKDIR /var/www/html
 
 # Copy Laravel files
 COPY . .
+
+RUN php artisan config:clear
+RUN php artisan cache:clear
 
 # Install dependencies
 RUN composer install --no-dev --optimize-autoloader
