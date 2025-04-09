@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+    app:
+        build: .
+        container_name: laravel_app
+        restart: always
+        working_dir: /var/www/html
+        ports:
+            - "8000:9000"
+        environment:
+            APP_ENV: production
+            APP_KEY: ${APP_KEY}
+            APP_DEBUG: false
+            APP_URL: https://vitalaidbackend-production.up.railway.app/
+            DB_CONNECTION: mongodb
+            DB_URI: ${DB_URI}
+        depends_on:
+            - mongodb
+
+    mongodb:
+        image: mongo
+        container_name: mongodb
+        restart: always
+        ports:
+            - "27017:27017"
+        environment:
+            MONGO_INITDB_DATABASE: ${DB_DATABASE}
