@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y \
     git \
     curl
 
-# Install PHP extensions
-RUN pecl install mongodb \
+# Install specific MongoDB extension version
+RUN pecl install mongodb-1.16.2 \
     && docker-php-ext-enable mongodb
 
 # Set working directory
@@ -20,9 +20,9 @@ WORKDIR /var/www/html
 # Copy Laravel project files
 COPY . .
 
-# Install Composer dependencies
+# Install Composer dependencies with platform requirements ignored
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
 
 # Expose the necessary ports
 EXPOSE 9000
