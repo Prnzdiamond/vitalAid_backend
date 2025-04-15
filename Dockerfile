@@ -20,9 +20,18 @@ WORKDIR /var/www/html
 # Copy Laravel project files
 COPY . .
 
-# Install Composer dependencies with platform requirements ignored
+# Install Composer dependencies with no scripts to avoid package discovery
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs --no-scripts
+
+# Copy environment file
+COPY .env.production .env
+
+# Run post-install commands manually
+RUN php artisan key:generate
+RUN php artisan config:cache
+RUN php artisan route:cache
+RUN php artisan view:cache
 
 # Expose the necessary ports
 EXPOSE 9000
