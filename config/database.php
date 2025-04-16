@@ -33,14 +33,16 @@ return [
 
         'mongodb' => [
             'driver' => 'mongodb',
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', 27017),
-            'database' => env('DB_DATABASE', 'vitalaid'),
-            'username' => env('DB_USERNAME', ''),
-            'password' => env('DB_PASSWORD', ''),
-            'options' => [
-                'database' => env('DB_DATABASE', 'vitalaid') // set the authentication database
-            ]
+            'dsn' => env('DB_URI'),
+            'database' => env('DB_DATABASE'),
+            // 'host' => env('DB_HOST', '127.0.0.1'),
+            // 'port' => env('DB_PORT', 27017),
+            // 'database' => env('DB_DATABASE', 'vitalaid'),
+            // 'username' => env('DB_USERNAME', ''),
+            // 'password' => env('DB_PASSWORD', ''),
+            // 'options' => [
+            //     'database' => env('DB_DATABASE', 'vitalaid') // set the authentication database
+            // ]
         ],
 
         'sqlite' => [
