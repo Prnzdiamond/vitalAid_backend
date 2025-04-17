@@ -46,7 +46,17 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/user/notifications', [UserController::class, 'getNotifications']);
     Route::post('/user/notifications/{id}/mark-as-read', [UserController::class, 'markNotificationAsRead']);
-    Route::post('/broadcasting/auth', [BroadcastController::class, 'authenticate']);
+    Route::post('/broadcasting/auth', function (Request $request) {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated.'], 401);
+        }
+
+        Log::info("✅ Broadcasting auth success", ['user_id' => $user->id]);
+
+        return Broadcast::auth($request);
+    });
 
 });
 
