@@ -24,6 +24,7 @@ class EventController extends Controller
     // ✅ Show a single event (Public)
     public function show($eventId)
     {
+
         $event = Event::find($eventId);
         if (!$event) {
             return response()->json(['message' => 'Event not found'], 404);
@@ -136,4 +137,99 @@ class EventController extends Controller
             'joined_events' => $events
         ]);
     }
+
+    public function createdEvents(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        // Fetch the events created by the user
+        $events = Event::where('event_manager', $user->id)->get();
+
+        return response()->json([
+            'created_events' => $events
+        ]);
+    }
+    public function updateEvent(Request $request, $eventId)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $event = Event::find($eventId);
+        if (!$event) {
+            return response()->json(['message' => 'Event not found'], 404);
+        }
+
+        // Check if the user is the event manager
+        if ($event->event_manager !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'title' => 'sometimes|required|string|max:255',
+            'description' => 'sometimes|required|string',
+            'location' => 'sometimes|required|string',
+            'start_time' => 'sometimes|required|date',
+            'end_time' => 'sometimes|required|date|after:start_time',
+        ]);
+
+        $event->update($request->all());
+
+        return response()->json([
+            'message' => 'Event updated successfully',
+            'event' => $event
+        ]);
+    }
+    public function deleteEvent(Request $request, $eventId)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $event = Event::find($eventId);
+        if (!$event) {
+            return response()->json(['message' => 'Event not found'], 404);
+        }
+
+        // Check if the user is the event manager
+        if ($event->event_manager !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $event->delete();
+
+        return response()->json(['message' => 'Event deleted successfully']);
+    }
+    public function leaveEvent(Request $request, $eventId)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $event = Event::find($eventId);
+        if (!$event) {
+            return response()->json(['message' => 'Event not found'], 404);
+        }
+
+        // Check if user is a participant
+        $participant = EventParticipant::where('event_id', $eventId)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$participant) {
+            return response()->json(['message' => 'You are not a participant of this event'], 409);
+        }
+
+        $participant->delete();
+
+        return response()->json(['message' => 'Successfully left the event']);
+    }
+
+
 }

@@ -39,8 +39,13 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::get('/events', [EventController::class, 'index']); // Fetch events
     Route::post('/events', [EventController::class, 'store']); // Create event (Admin only)
     Route::post('/events/{eventId}/join', [EventController::class, 'joinEvent']); // Join event
-    Route::get('/events/{eventId}/participants', [EventController::class, 'getEventParticipants']); // Fetch event participants
+    Route::get('/events/{eventId}/participants', [EventController::class, 'getEventParticipants']); // Fetch event participant
+    Route::get('/events/{eventId}', [EventController::class, 'show']); // Fetch single event
     Route::get('/user/events', [EventController::class, 'userEvents']); // Fetch user events
+    Route::get('/user/events/created', [EventController::class, 'createdEvents']); // Fetch user created events
+    Route::put('/events/{eventId}/update', [EventController::class, 'updateEvent']); // Update event (Owner only)
+    Route::delete('/events/{eventId}/delete', [EventController::class, 'deleteEvent']); // Delete event (Owner only)
+    Route::post('/events/{eventId}/leave', [EventController::class, 'leaveEvent']); // Add event participant (Admin only)
 
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
