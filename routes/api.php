@@ -31,6 +31,10 @@ use App\Http\Controllers\VitalAid\DonationRequestController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/webhook/paystack', 'App\Http\Controllers\VitalAid\PaystackWebhookController@handleWebhook');
+Route::prefix('donations')->group(function () {
+    // Put the verification endpoint here
+    Route::get('/verify/{id}', 'App\Http\Controllers\VitalAid\DonationController@verify');
+});
 
 /**
  * Protected Routes - Requires Sanctum Authentication
@@ -128,7 +132,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Donations
         Route::post('/donate', [DonationController::class, 'donate']);
-        Route::get('/verify/{id}', 'App\Http\Controllers\VitalAid\DonationController@verify');
         Route::get('/user', [UserController::class, 'userDonations']);
         Route::get('/organization/{id}', [DonationController::class, 'getOrganizationDonations']);
     });
@@ -137,8 +140,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/request', 'App\Http\Controllers\VitalAid\WithdrawalRequestController@requestWithdrawal');
         Route::get('/', 'App\Http\Controllers\VitalAid\WithdrawalRequestController@list');
         Route::get('/all', 'App\Http\Controllers\VitalAid\WithdrawalRequestController@listAll');
-        Route::get('/check/{id}', 'App\Http\Controllers\VitalAid\WithdrawalRequestController@checkStatus');
         Route::get('/banks', 'App\Http\Controllers\VitalAid\WithdrawalRequestController@getBanks');
+        Route::get('/check/{id}', 'App\Http\Controllers\VitalAid\WithdrawalRequestController@checkStatus');
     });
 
 
@@ -147,11 +150,12 @@ Route::middleware('auth:sanctum')->group(function () {
         // List all communities (public endpoint)
         Route::get('/list', [CommunityController::class, 'listCommunities']);
 
+        Route::get('/my/list', [CommunityController::class, 'myCommunitiesList']);
         // Get single community details (public endpoint)
+        Route::post('/notify-members', [CommunityController::class, 'notifyCommunityMembers']);
         Route::get('/{communityId}', [CommunityController::class, 'getCommunity']);
 
         // Get a list of communities the authenticated user is a member of
-        Route::get('/my/list', [CommunityController::class, 'myCommunitiesList']);
 
         // Join a community
         Route::post('/{communityId}/join', [CommunityController::class, 'joinCommunity']);
@@ -163,7 +167,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{communityId}/members', [CommunityController::class, 'getCommunityMembers']);
 
         // Send notification to community members (community admins only)
-        Route::post('/notify-members', [CommunityController::class, 'notifyCommunityMembers']);
     });
 
 });

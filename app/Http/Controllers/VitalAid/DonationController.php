@@ -54,8 +54,10 @@ class DonationController extends Controller
                 'status' => 'pending',
             ]);
 
-            $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
-            $callbackUrl = "{$frontendUrl}/donate/{$donationRequest->id}?donation_id={$donation->id}";
+            // CHANGED: Redirect to backend endpoint instead of frontend
+            $backendUrl = config('app.url', 'http://localhost:8000');
+            $callbackUrl = "{$backendUrl}/api/donations/verify/{$donation->id}";
+            Log::info($callbackUrl);
 
             // Initialize Paystack payment
             $paymentData = $this->paystackService->initializeDonationPayment(
@@ -107,24 +109,32 @@ class DonationController extends Controller
     /**
      * Verify a donation payment after Paystack redirects back
      */
+    // In DonationController.php - modify the verify method
+
     public function verify(Request $request, $donation_id)
     {
         try {
             $donation = Donation::findOrFail($donation_id);
 
             if ($donation->payment_status === 'success') {
-                // If this is an API request
+                // Payment already verified
+                $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+                $redirectUrl = "{$frontendUrl}/donate/{$donation->donation_request_id}?verified=true&donation_id={$donation->id}";
+
+                Log::info($redirectUrl);
+
                 if ($request->expectsJson()) {
                     return response()->json([
                         'success' => true,
                         'message' => 'Payment already verified.',
-                        'data' => ['donation' => $donation]
+                        'data' => [
+                            'donation' => $donation,
+                            'redirect_url' => $redirectUrl
+                        ]
                     ], 200);
                 }
 
-                // If this is a browser redirect request (from Paystack)
-                $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
-                return redirect("{$frontendUrl}/donate/{$donation->donation_request_id}?verified=true&donation_id={$donation->id}");
+                return redirect($redirectUrl);
             }
 
             // Verify the payment with Paystack
@@ -135,25 +145,26 @@ class DonationController extends Controller
                 $donation->status = 'failed';
                 $donation->save();
 
-                // If this is an API request
+                $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+                $redirectUrl = "{$frontendUrl}/donate/{$donation->donation_request_id}?verified=false&donation_id={$donation->id}";
+
+                Log::info($redirectUrl);
+
                 if ($request->expectsJson()) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Payment verification failed.',
+                        'redirect_url' => $redirectUrl
                     ], 400);
                 }
 
-                // If this is a browser redirect request (from Paystack)
-                $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
-                return redirect("{$frontendUrl}/donate/{$donation->donation_request_id}?verified=false&donation_id={$donation->id}");
+                return redirect($redirectUrl);
             }
 
             // Update donation as successful
             $donation->payment_status = 'success';
             $donation->status = 'success';
             $donation->save();
-
-            Log::info("succesfully verified");
 
             // Update donation request amount
             $donationRequest = DonationRequest::findOrFail($donation->donation_request_id);
@@ -186,40 +197,53 @@ class DonationController extends Controller
                 ]
             ]));
 
-            // If this is an API request
+            // If API request, return JSON
+            $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+            $redirectUrl = "{$frontendUrl}/donate/{$donation->donation_request_id}?verified=true&donation_id={$donation->id}";
+
+            Log::info($redirectUrl);
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
                     'message' => 'Payment verified successfully.',
-                    'data' => ['donation' => $donation]
+                    'data' => [
+                        'donation' => $donation,
+                        'redirect_url' => $redirectUrl
+                    ]
                 ], 200);
             }
 
-            // If this is a browser redirect request (from Paystack)
-            $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
-            return redirect("{$frontendUrl}/donate/{$donation->donation_request_id}?verified=true&donation_id={$donation->id}");
+            // For browser redirect from Paystack, redirect to frontend
+            return redirect($redirectUrl);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+            $redirectUrl = "{$frontendUrl}/donate?error=not_found";
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Donation not found.'
+                    'message' => 'Donation not found.',
+                    'redirect_url' => $redirectUrl
                 ], 404);
             }
 
-            $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
-            return redirect("{$frontendUrl}/donate?error=not_found");
+            return redirect($redirectUrl);
         } catch (\Exception $e) {
             Log::error('Failed to verify payment: ' . $e->getMessage());
+
+            $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+            $redirectUrl = "{$frontendUrl}/donate?error=verification_failed";
 
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to verify payment.'
+                    'message' => 'Failed to verify payment.',
+                    'redirect_url' => $redirectUrl
                 ], 500);
             }
 
-            $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
-            return redirect("{$frontendUrl}/donate?error=verification_failed");
+            return redirect($redirectUrl);
         }
     }
 
