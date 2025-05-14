@@ -24,27 +24,26 @@ class ConsultationRequested extends Notification implements ShouldQueue
     // Specify how the notification should be stored in the database
     public function toArray($notifiable)
     {
-        Log::info('Database Connection: ', [DB::connection()->getDatabaseName()]);
+        Log::info("checking notification for user {$notifiable->id}");
         return [
             'consultation_id' => $this->consultation->id,
-            'message' => "New consultation request from User ID: {$this->consultation->user_id}.",
+            'message' => "New consultation request from User ID: {$this->consultation->user->_tag}.",
             'type' => 'consultation',
         ];
     }
 
-    // Specify how the notification should be broadcasted (for real-time updates)
-    public function toBroadcast($notifiable)
-    {
-        return new BroadcastMessage([
-            'consultation_id' => $this->consultation->id,
-            'message' => "New consultation request from User ID: {$this->consultation->user_id}.",
-            'type' => 'consultation',
-        ]);
-    }
+    // public function toBroadcast($notifiable)
+    // {
+    //     return new BroadcastMessage([
+    //         'consultation_id' => $this->consultation->id,
+    //         'message' => "New consultation request from User ID: {$this->consultation->user->_tag}.",
+    //         'type' => 'consultation',
+    //     ]);
+    // }
 
     // Define which notification channels to use (database & broadcast)
     public function via($notifiable)
     {
-        return ['database', 'broadcast'];
+        return ['database'];
     }
 }

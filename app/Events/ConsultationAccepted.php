@@ -3,12 +3,15 @@
 namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Broadcasting\InteractsWithSockets;
 
-class ConsultationAccepted
+class ConsultationAccepted implements ShouldBroadcast
 {
-    use Dispatchable, SerializesModels;
+    use InteractsWithSockets, SerializesModels;
 
     public $consultation;
 
@@ -19,7 +22,7 @@ class ConsultationAccepted
 
     public function broadcastOn()
     {
-        return new Channel('consultations');
+        return new PrivateChannel('consultations');
     }
 
     public function broadcastAs()

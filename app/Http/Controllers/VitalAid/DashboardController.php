@@ -9,34 +9,36 @@ use App\Http\Resources\VitalAid\EventResource;
 use App\Http\Resources\VitalAid\DonationResource;
 use App\Http\Resources\VitalAid\ConsultationResource;
 use App\Http\Resources\VitalAid\DonationRequestResource;
-use Illuminate\Support\Facades\Log;
 
-class UserController extends Controller
+class DashboardController extends Controller
 {
-
+    /**
+     * Get user dashboard data based on their role
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
     public function index(Request $request): JsonResponse
     {
-        try {
-            $user = $request->user();
-            $dashboardData = $user->getDashboardData();
+        $user = $request->user();
+        $dashboardData = $user->getDashboardData();
 
-            // Process the data based on role to add counts and transform with resources
-            $processedData = $this->processDataBasedOnRole($user->role, $dashboardData);
+        // Process the data based on role to add counts and transform with resources
+        $processedData = $this->processDataBasedOnRole($user->role, $dashboardData);
 
-            return response()->json([
-                'success' => true,
-                'data' => $processedData
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch dashboard data: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch dashboard data.'
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'data' => $processedData
+        ]);
     }
 
+    /**
+     * Process dashboard data based on user role
+     *
+     * @param string $role
+     * @param array $data
+     * @return array
+     */
     private function processDataBasedOnRole(string $role, array $data): array
     {
         switch ($role) {
@@ -53,7 +55,12 @@ class UserController extends Controller
         }
     }
 
-
+    /**
+     * Process regular user dashboard data
+     *
+     * @param array $data
+     * @return array
+     */
     private function processUserData(array $data): array
     {
         return [
@@ -77,7 +84,12 @@ class UserController extends Controller
         ];
     }
 
-
+    /**
+     * Process health expert dashboard data
+     *
+     * @param array $data
+     * @return array
+     */
     private function processHealthExpertData(array $data): array
     {
         return [
@@ -122,7 +134,12 @@ class UserController extends Controller
         ];
     }
 
-
+    /**
+     * Process community dashboard data
+     *
+     * @param array $data
+     * @return array
+     */
     private function processCommunityData(array $data): array
     {
         return [
@@ -138,130 +155,4 @@ class UserController extends Controller
             'top_three_events_hosted' => EventResource::collection($data['top_three_events_hosted']),
         ];
     }
-
-    /**
-     * Get user notifications
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function getNotifications(Request $request): JsonResponse
-    {
-        try {
-            $user = $request->user();
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'unread_notifications' => $user->unreadNotifications
-                ]
-            ], 200);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch notifications: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch notifications.'
-            ], 500);
-        }
-    }
-
-    /**
-     * Mark notification as read
-     *
-     * @param Request $request
-     * @param string $id
-     * @return JsonResponse
-     */
-    public function markNotificationAsRead(Request $request, $id): JsonResponse
-    {
-        try {
-            $user = $request->user();
-            $notification = $user->notifications()->find($id);
-
-            if (!$notification) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Notification not found.'
-                ], 404);
-            }
-
-            $notification->markAsRead();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Notification marked as read.'
-            ], 200);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to mark notification as read: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to mark notification as read.'
-            ], 500);
-        }
-    }
-
-    /**
-     * Get user donations
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function userDonations(Request $request): JsonResponse
-    {
-        try {
-            $user = $request->user();
-            $donations = $user->donations()->get(); // Fixed method name from donation() to donations()
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'donations' => $donations
-                ]
-            ], 200);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch user donations: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch user donations.'
-            ], 500);
-        }
-    }
-
-    /**
-     * Get recent user activities
-     * Currently commented out in the original code, but included here for completeness
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    /*
-    public function recentActivities(Request $request): JsonResponse
-    {
-        try {
-            $user = $request->user();
-            $activities = $user->activities()->latest()->take(10)->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'activities' => $activities
-                ]
-            ], 200);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch recent activities: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch recent activities.'
-            ], 500);
-        }
-    }
-    */
 }

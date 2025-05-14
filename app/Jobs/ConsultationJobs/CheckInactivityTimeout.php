@@ -2,6 +2,7 @@
 
 namespace App\Jobs\ConsultationJobs;
 
+use Illuminate\Support\Facades\Log;
 use App\Models\VitalAid\Consultation;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -28,6 +29,7 @@ class CheckInactivityTimeout implements ShouldQueue
             ->get();
 
         foreach ($consultations as $consultation) {
+            Log::info("doing it");
             $consultation->update(['status' => 'completed']);
         }
     }
