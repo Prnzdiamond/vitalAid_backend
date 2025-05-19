@@ -204,6 +204,25 @@ class UserController extends Controller
         }
     }
 
+    public function markAllNotificationsAsRead(Request $request)
+    {
+        $user = $request->user(); // or Auth::user()
+
+        if ($user) {
+            $user->unreadNotifications->markAsRead();
+            return response()->json([
+                'success' => true,
+                'message' => 'All notifications marked as read.'
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'User not found.'
+        ], 404);
+    }
+
+
     /**
      * Get user donations
      *
