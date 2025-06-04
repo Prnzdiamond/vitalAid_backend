@@ -176,7 +176,7 @@
         <div class="admin-card bg-white rounded-lg p-6">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
             <div class="grid grid-cols-2 gap-3">
-                <a href="{{ {{ route('admin.verifications.index') }} }}"
+                <a href=" {{ route('admin.verifications.index') }} "
                     class="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -184,7 +184,7 @@
                     </svg>
                     Verifications
                 </a>
-                <a href="{{ {{ route('admin.users.index') }} }}"
+                <a href="{{ route('admin.users.index') }} "
                     class="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -192,7 +192,7 @@
                     </svg>
                     Manage Users
                 </a>
-                <a href="{{ {{ route('admin.events.index') }}"
+                <a href=" {{ route('admin.events.index') }}"
                     class="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
