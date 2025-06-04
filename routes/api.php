@@ -46,6 +46,12 @@ Route::middleware('auth:sanctum')->group(function () {
      */
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
+    Route::put('/user/update', [AuthController::class, 'updateProfile']);
+    Route::post('/verification/submit', [AuthController::class, 'submitVerification']);
+    Route::post('/verification/document/update', [AuthController::class, 'updateVerificationDocument'])->name('auth.update-verification-document');
+    Route::delete('/verification/document/remove', [AuthController::class, 'removeVerificationDocument'])->name('auth.remove-verification-document');
+    Route::get('/verification/status', [AuthController::class, 'verificationStatus']);
+    Route::get('/verification/download/{userId}', [AuthController::class, 'downloadVerificationDocument']);
 
     /**
      * Notifications
@@ -81,6 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}', [ConsultationController::class, 'getConsultation']);
         Route::post('/{id}/accept', [ConsultationController::class, 'acceptConsultation']);
         Route::post('/{id}/message', [ConsultationController::class, 'sendMessage']);
+        Route::get('/{id}/messages', [ConsultationController::class, 'getMessages']);
         Route::post('/{id}/end', [ConsultationController::class, 'endConsultation']);
         Route::post('/{id}/takeover', [ConsultationController::class, 'takeOver']);
         Route::post('/{id}/follow-up', [ConsultationController::class, 'requestFollowUp']);

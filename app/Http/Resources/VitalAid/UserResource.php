@@ -27,6 +27,30 @@ class UserResource extends JsonResource
             'name' => $this->name, // Using the consistent name accessor
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+
+            // Verification fields - include for all roles that need verification
+            'is_verified' => $this->is_verified,
+            'verification_status' => $this->verification_status,
+            'verification_progress' => $this->verification_progress,
+            'required_documents' => $this->required_documents,
+            'verification_submitted_at' => $this->verification_submitted_at,
+            'verification_approved_at' => $this->verification_approved_at,
+            'verification_rejected_at' => $this->verification_rejected_at,
+            'verification_rejection_reason' => $this->verification_rejection_reason,
+            'verified_by' => $this->verified_by,
+
+            // Optional: Include missing documents info for incomplete verifications
+            'missing_documents' => $this->when(
+                !$this->hasCompleteDocuments() && in_array($this->role, ['health_expert', 'charity', 'community']),
+                $this->getMissingDocuments()
+            ),
+
+            // Optional: Include verification documents for admin/owner view
+            'verification_documents' => $this->when(
+                $request->user() &&
+                ($request->user()->role === 'admin' || $request->user()->id === $this->id),
+                $this->verification_documents
+            ),
         ];
 
         // Add role-specific fields based on user role
@@ -81,9 +105,12 @@ class UserResource extends JsonResource
                                 'id' => $member->user->id ?? null,
                                 'first_name' => $member->user->first_name ?? null,
                                 'last_name' => $member->user->last_name ?? null,
+                                'name' => $member->user->name ?? null,
                                 '_tag' => $member->user->_tag ?? null,
                                 'role' => $member->user->role ?? null,
                                 'logo' => $member->user->logo ?? null, // Profile picture
+                                'is_verified' => $member->user->is_verified ?? false,
+                                'verification_status' => $member->user->verification_status ?? null,
                             ]
                         ];
                     });
@@ -103,9 +130,12 @@ class UserResource extends JsonResource
                                 'id' => $member->user->id ?? null,
                                 'first_name' => $member->user->first_name ?? null,
                                 'last_name' => $member->user->last_name ?? null,
+                                'name' => $member->user->name ?? null,
                                 '_tag' => $member->user->_tag ?? null,
                                 'role' => $member->user->role ?? null,
                                 'logo' => $member->user->logo ?? null, // Profile picture
+                                'is_verified' => $member->user->is_verified ?? false,
+                                'verification_status' => $member->user->verification_status ?? null,
                             ]
                         ];
                     });
@@ -116,6 +146,12 @@ class UserResource extends JsonResource
             'events_hosted_count' => $this->events_hosted_count ?? 0,
             'upcoming_events_count' => $this->upcoming_events_count ?? 0,
             'upcoming_events' => $this->when(isset($this->upcoming_events), $this->upcoming_events, []),
+
+            // Dashboard data when available
+            'members' => $this->when(isset($this->members), $this->members, []),
+            'events_hosted_this_year_count' => $this->when(isset($this->events_hosted_this_year_count), $this->events_hosted_this_year_count, 0),
+            'first_three_upcoming_events' => $this->when(isset($this->first_three_upcoming_events), $this->first_three_upcoming_events, []),
+            'top_three_events_hosted' => $this->when(isset($this->top_three_events_hosted), $this->top_three_events_hosted, []),
         ];
     }
 
@@ -141,6 +177,13 @@ class UserResource extends JsonResource
             'target_audience' => $this->target_audience,
             'donation_requests_count' => $this->donation_requests_count ?? 0,
             'total_amount_raised' => $this->total_amount_raised ?? 0,
+
+            // Dashboard data when available
+            'donations_received_count' => $this->when(isset($this->donations_received_count), $this->donations_received_count, 0),
+            'ongoing_donations_count' => $this->when(isset($this->ongoing_donations_count), $this->ongoing_donations_count, 0),
+            'upcoming_events_count' => $this->when(isset($this->upcoming_events_count), $this->upcoming_events_count, 0),
+            'first_three_ongoing_donations' => $this->when(isset($this->first_three_ongoing_donations), $this->first_three_ongoing_donations, []),
+            'first_three_upcoming_events' => $this->when(isset($this->first_three_upcoming_events), $this->first_three_upcoming_events, []),
         ];
     }
 
@@ -164,6 +207,14 @@ class UserResource extends JsonResource
             'social_links' => $this->social_links,
             'average_rating' => $this->average_rating ?? 0,
             'consultations_count' => $this->consultations_handled_count ?? 0,
+
+            // Dashboard data when available
+            'active_consultations_count' => $this->when(isset($this->active_consultations_count), $this->active_consultations_count, 0),
+            'follow_up_requests_count' => $this->when(isset($this->follow_up_requests_count), $this->follow_up_requests_count, 0),
+            'donations_made_count' => $this->when(isset($this->donations_made_count), $this->donations_made_count, 0),
+            'events_attended_count' => $this->when(isset($this->events_attended_count), $this->events_attended_count, 0),
+            'upcoming_events_count' => $this->when(isset($this->upcoming_events_count), $this->upcoming_events_count, 0),
+            'first_three_recent_consultations_accepted' => $this->when(isset($this->first_three_recent_consultations_accepted), $this->first_three_recent_consultations_accepted, []),
         ];
     }
 }

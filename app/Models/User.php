@@ -2,29 +2,25 @@
 
 namespace App\Models;
 
+use Exception;
 use App\Models\VitalAid\Event;
 use App\Models\VitalAid\Donation;
 use Laravel\Sanctum\HasApiTokens;
 use MongoDB\Laravel\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use App\Models\VitalAid\Consultation;
+use Illuminate\Support\Facades\Storage;
+use App\Models\VitalAid\CommunityMember;
 use App\Models\VitalAid\DonationRequest;
 use App\Models\VitalAid\EventParticipant;
-use App\Models\VitalAid\CommunityMember;
 use App\Overrides\Notifications\Notifiable;
-use Illuminate\Support\Facades\Auth;
 use MongoDB\Laravel\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $connection = "mongodb";
     protected $fillable = [
         'first_name',
@@ -34,7 +30,6 @@ class User extends Authenticatable
         'phone_number',
         'role',
         'password',
-        // Common fields for organizational roles (community, charity, health_expert)
         'description',
         'location',
         'type',
@@ -43,33 +38,26 @@ class User extends Authenticatable
         'banner',
         'website',
         'social_links',
-        // Health expert specific fields
         'specialization',
         'qualifications',
         'available_hours',
         'experience_years',
-        // Charity specific fields
         'registration_number',
         'founding_date',
         'mission_statement',
         'target_audience',
+        'is_verified',
+        'verification_status',
+        'verification_documents',
+        'verification_submitted_at',
+        'verification_approved_at',
+        'verification_rejected_at',
+        'verification_rejection_reason',
+        'verified_by',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = ['password', 'remember_token'];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -77,229 +65,331 @@ class User extends Authenticatable
             'password' => 'hashed',
             'social_links' => 'array',
             'available_hours' => 'array',
+            'is_verified' => 'boolean',
+            'verification_documents' => 'array',
+            'verification_submitted_at' => 'datetime',
+            'verification_approved_at' => 'datetime',
+            'verification_rejected_at' => 'datetime',
         ];
     }
 
-    /**
-     * The attributes that should be appended to the model.
-     *
-     * @var array
-     */
-    protected $appends = [
-        'name',
-    ];
+    protected $appends = ['name', 'verification_progress', 'required_documents', 'document_urls'];
 
     public function isRole($role)
     {
         return $this->role === $role;
     }
+    public function isVerified()
+    {
+        return $this->is_verified === true && $this->verification_status === 'approved';
+    }
 
+    public function getDocumentUrlsAttribute()
+    {
+        if (!$this->verification_documents)
+            return [];
+
+        $documentUrls = [];
+        foreach ($this->verification_documents as $docType => $filePath) {
+            $documentUrls[$docType] = [
+                'url' => asset('storage/' . $filePath),
+                'filename' => basename($filePath),
+                'uploaded_at' => $this->verification_submitted_at?->format('Y-m-d H:i:s')
+            ];
+        }
+        return $documentUrls;
+    }
+
+    public function getDocumentUrl(string $documentType)
+    {
+        if (!$this->verification_documents || !isset($this->verification_documents[$documentType]))
+            return null;
+
+        $filePath = $this->verification_documents[$documentType];
+        return [
+            'url' => asset('storage/' . $filePath),
+            'filename' => basename($filePath),
+            'path' => $filePath
+        ];
+    }
+
+    public function hasDocument(string $documentType)
+    {
+        return isset($this->verification_documents[$documentType]) &&
+            !empty($this->verification_documents[$documentType]) &&
+            Storage::disk('public')->exists($this->verification_documents[$documentType]);
+    }
+
+    public function getDocumentSize(string $documentType)
+    {
+        if (!$this->hasDocument($documentType))
+            return null;
+
+        try {
+            return Storage::disk('public')->size($this->verification_documents[$documentType]);
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    public function getDocumentInfo(string $documentType)
+    {
+        if (!$this->hasDocument($documentType))
+            return null;
+
+        $filePath = $this->verification_documents[$documentType];
+        try {
+            return [
+                'url' => asset('storage/' . $filePath),
+                'filename' => basename($filePath),
+                'size' => Storage::disk('public')->size($filePath),
+                'last_modified' => Storage::disk('public')->lastModified($filePath),
+                'mime_type' => Storage::disk('public')->mimeType($filePath)
+            ];
+        } catch (Exception $e) {
+            return ['url' => asset('storage/' . $filePath), 'filename' => basename($filePath), 'error' => 'Could not retrieve file metadata'];
+        }
+    }
+
+    public function getVerificationProgressAttribute()
+    {
+        if (!in_array($this->role, ['health_expert', 'charity', 'community']))
+            return 100;
+
+        $requiredDocs = $this->getRequiredDocumentsAttribute();
+        $uploadedDocs = $this->verification_documents ?? [];
+
+        if (empty($requiredDocs))
+            return 0;
+
+        $uploadedCount = collect($requiredDocs)->keys()->filter(
+            fn($docType) =>
+            isset($uploadedDocs[$docType]) && !empty($uploadedDocs[$docType])
+        )->count();
+
+        return round(($uploadedCount / count($requiredDocs)) * 100);
+    }
+
+    public function getRequiredDocumentsAttribute()
+    {
+        return match ($this->role) {
+            'health_expert' => [
+                'government_id' => 'Government-issued ID',
+                'professional_license' => 'Professional License/Certification',
+                'education_proof' => 'Proof of Education (Degree/Diploma)',
+                'employment_letter' => 'Employment/Practice Affiliation Letter',
+                'registration_number' => 'Professional Registration Number',
+            ],
+            'charity' => [
+                'representative_id' => 'Government-issued ID of Representative',
+                'registration_certificate' => 'Certificate of Registration/Incorporation',
+                'tax_identification' => 'Tax Identification Number/Certificate',
+                'mission_statement' => 'Mission Statement/Constitution',
+                'address_proof' => 'Official Address Proof',
+                'trustees_list' => 'List of Trustees/Executives',
+            ],
+            'community' => [
+                'representative_id' => 'Government-issued ID of Representative',
+                'leadership_letter' => 'Community Leadership Letter/Endorsement',
+                'group_constitution' => 'Group Constitution/Meeting Minutes',
+                'group_evidence' => 'Group Photo/Event Evidence',
+                'location_proof' => 'Location Proof',
+            ],
+            default => []
+        };
+    }
+
+    public function getOptionalDocuments()
+    {
+        return match ($this->role) {
+            'health_expert' => ['health_council_id' => 'Health Council ID Card', 'online_profile' => 'LinkedIn/Online Portfolio'],
+            'charity' => ['website_proof' => 'Official Website/Social Media', 'partnership_letters' => 'Partnership Letters with Verified Bodies'],
+            'community' => ['lga_endorsement' => 'LGA/NGO Endorsements', 'community_certificates' => 'Community Registry/Recognition Certificates'],
+            default => []
+        };
+    }
+
+    public function submitForVerification(array $documents)
+    {
+        $this->update([
+            'verification_documents' => $documents,
+            'verification_status' => 'pending',
+            'verification_submitted_at' => now()
+        ]);
+    }
+
+    public function approveVerification($verifiedBy = null)
+    {
+        $this->update([
+            'is_verified' => true,
+            'verification_status' => 'approved',
+            'verification_approved_at' => now(),
+            'verified_by' => $verifiedBy,
+            'verification_rejection_reason' => null
+        ]);
+    }
+
+    public function rejectVerification($reason, $rejectedBy = null)
+    {
+        $this->update([
+            'is_verified' => false,
+            'verification_status' => 'rejected',
+            'verification_rejected_at' => now(),
+            'verification_rejection_reason' => $reason,
+            'verified_by' => $rejectedBy
+        ]);
+    }
+
+    public function resetVerification()
+    {
+        $this->update([
+            'is_verified' => false,
+            'verification_status' => null,
+            'verification_documents' => [],
+            'verification_submitted_at' => null,
+            'verification_approved_at' => null,
+            'verification_rejected_at' => null,
+            'verification_rejection_reason' => null,
+            'verified_by' => null
+        ]);
+    }
+
+    public function hasCompleteDocuments()
+    {
+        $requiredDocs = $this->getRequiredDocumentsAttribute();
+        $uploadedDocs = $this->verification_documents ?? [];
+
+        return collect($requiredDocs)->keys()->every(
+            fn($docType) =>
+            isset($uploadedDocs[$docType]) && !empty($uploadedDocs[$docType])
+        );
+    }
+
+    public function getMissingDocuments()
+    {
+        $requiredDocs = $this->getRequiredDocumentsAttribute();
+        $uploadedDocs = $this->verification_documents ?? [];
+
+        return collect($requiredDocs)->filter(
+            fn($docName, $docType) =>
+            !isset($uploadedDocs[$docType]) || empty($uploadedDocs[$docType])
+        )->toArray();
+    }
+
+    // Scopes
+    public function scopeVerified($query)
+    {
+        return $query->where('is_verified', true)->where('verification_status', 'approved');
+    }
+    public function scopeNeedsVerification($query)
+    {
+        return $query->whereIn('role', ['health_expert', 'charity', 'community'])
+            ->where(fn($q) => $q->where('is_verified', false)->orWhereNull('is_verified')->orWhere('verification_status', '!=', 'approved'));
+    }
+    public function scopePendingVerification($query)
+    {
+        return $query->where('verification_status', 'pending');
+    }
+
+    // Relationships
     public function joinedEvents()
     {
         return $this->hasMany(EventParticipant::class, 'user_id');
     }
-
     public function createdEvents()
     {
         return $this->hasMany(Event::class, 'event_manager');
     }
-
     public function donation()
     {
         return $this->hasMany(Donation::class, 'user_id');
     }
-
     public function donationRequests()
     {
         return $this->hasMany(DonationRequest::class, 'org_id');
     }
-
     public function consultationsRequested()
     {
         return $this->hasMany(Consultation::class, 'user_id');
     }
-
     public function consultationsHandled()
     {
         return $this->hasMany(Consultation::class, 'doctor_id');
     }
 
-    /**
-     * Get name representation based on role
-     *
-     * @return string
-     */
     public function getNameAttribute()
     {
-        // For organizational accounts, they might not have a proper first/last name
-        if (in_array($this->role, ['community', 'charity'])) {
-            return $this->first_name ?: 'Organization';
-        }
-
-        return "{$this->first_name} {$this->last_name}";
+        return in_array($this->role, ['community', 'charity'])
+            ? ($this->first_name ?: 'Organization')
+            : "{$this->first_name} {$this->last_name}";
     }
 
-    /**
-     * Get all members of the community (only applicable for community role)
-     */
     public function communityMembers()
     {
-        if ($this->role !== 'community') {
-            return null;
-        }
-
-        return $this->hasMany(CommunityMember::class, 'community_id');
+        return $this->role === 'community' ? $this->hasMany(CommunityMember::class, 'community_id') : null;
     }
-
-    /**
-     * Get active members of the community (only applicable for community role)
-     */
     public function activeCommunityMembers()
     {
-        if ($this->role !== 'community') {
-            return null;
-        }
-
-        return $this->communityMembers()->where('status', 'active');
+        return $this->role === 'community' ? $this->communityMembers()->where('status', 'active') : null;
     }
 
-    /**
-     * Get the members count for the community (only applicable for community role)
-     *
-     * @return int|null
-     */
     public function getMembersCountAttribute()
     {
-        if ($this->role !== 'community') {
-            return null;
-        }
-
-        return CommunityMember::where('community_id', $this->id)
-            ->where('status', 'active')
-            ->count();
+        return $this->role === 'community'
+            ? CommunityMember::where('community_id', $this->id)->where('status', 'active')->count()
+            : null;
     }
 
-    /**
-     * Check if the authenticated user is a member of this community
-     * (only applicable for community role)
-     *
-     * @return bool|null
-     */
     public function getIsMemberAttribute()
     {
-        if ($this->role !== 'community') {
-            return null;
-        }
+        if ($this->role !== 'community' || !($user = Auth::user()))
+            return $this->role === 'community' ? false : null;
 
-        $user = Auth::user();
-        if (!$user) {
-            return false;
-        }
-
-        $member = CommunityMember::where('community_id', $this->id)
-            ->where('user_id', $user->id)
-            ->where('status', 'active')
-            ->first();
-
-        return $member !== null;
+        return CommunityMember::where('community_id', $this->id)
+            ->where('user_id', $user->id)->where('status', 'active')->exists();
     }
 
-    /**
-     * Filter to only include communities
-     */
     public static function communities()
     {
         return self::where('role', 'community');
     }
-
-    /**
-     * Order by location proximity (placeholder implementation)
-     */
     public static function orderByLocation($query, $userLocation)
     {
-        // This is a placeholder for actual geolocation sorting
-        // In a real implementation, you would use coordinates and calculate distances
-        if ($userLocation) {
-            return $query->orderByRaw("CASE WHEN location LIKE '%$userLocation%' THEN 0 ELSE 1 END");
-        }
-
-        return $query;
+        return $userLocation ? $query->orderByRaw("CASE WHEN location LIKE '%$userLocation%' THEN 0 ELSE 1 END") : $query;
     }
 
     public function getDashboardData()
     {
-        switch ($this->role) {
-            case 'user':
-                return $this->getUserDashboardData();
-            case 'health_expert':
-                return $this->getHealthExpertDashboardData();
-            case 'charity':
-                return $this->getCharityDashboardData();
-            case 'community':
-                return $this->getCommunityDashboardData();
-            default:
-                return [];
-        }
+        return match ($this->role) {
+            'user' => $this->getUserDashboardData(),
+            'health_expert' => $this->getHealthExpertDashboardData(),
+            'charity' => $this->getCharityDashboardData(),
+            'community' => $this->getCommunityDashboardData(),
+            default => []
+        };
     }
 
-    /**
-     * Get dashboard data for regular users
-     *
-     * @return array
-     */
     private function getUserDashboardData()
     {
-        // Get timestamp for upcoming events (current time and forward)
         $now = now();
+        $consultationsRequested = $this->consultationsRequested()->with('doctor')->latest('last_message_at')->get();
+        $donationsMade = $this->donation()->with('donationRequest')->latest()->get();
 
-        // Get consultations requested
-        $consultationsRequested = $this->consultationsRequested()
-            ->with('doctor')
-            ->latest('last_message_at')
-            ->get();
+        $eventsAttended = $this->joinedEvents()->with(['event'])
+            ->whereHas('event', fn($q) => $q->where('end_time', '<', $now))->get()
+            ->map(fn($ep) => $ep->event);
 
-        // Get donations made
-        $donationsMade = $this->donation()
-            ->with('donationRequest')
-            ->latest()
-            ->get();
-
-        // Get events attended
-        $eventsAttended = $this->joinedEvents()
-            ->with(['event'])
-            ->whereHas('event', function ($query) use ($now) {
-                $query->where('end_time', '<', $now);
-            })
-            ->get()
-            ->map(function ($eventParticipant) {
-                return $eventParticipant->event;
-            });
-
-        // Get upcoming events
-        $upcomingEvents = $this->joinedEvents()
-            ->with(['event'])
-            ->whereHas('event', function ($query) use ($now) {
-                $query->where('start_time', '>', $now);
-            })
-            ->get()
-            ->map(function ($eventParticipant) {
-                return $eventParticipant->event;
-            })
-            ->sortBy('start_time');
-
-        // Get first three upcoming events
-        $firstThreeUpcomingEvents = $upcomingEvents->take(3);
-
-        // Get first three most recent consultations
-        $firstThreeRecentConsultations = $consultationsRequested->take(3);
+        $upcomingEvents = $this->joinedEvents()->with(['event'])
+            ->whereHas('event', fn($q) => $q->where('start_time', '>', $now))->get()
+            ->map(fn($ep) => $ep->event)->sortBy('start_time');
 
         return [
             'consultations_requested' => $consultationsRequested,
             'donations_made' => $donationsMade,
             'events_attended' => $eventsAttended,
             'upcoming_events' => $upcomingEvents,
-            'first_three_upcoming_events' => $firstThreeUpcomingEvents,
-            'first_three_recent_consultations' => $firstThreeRecentConsultations,
+            'first_three_upcoming_events' => $upcomingEvents->take(3),
+            'first_three_recent_consultations' => $consultationsRequested->take(3),
             'consultations_count' => $consultationsRequested->count(),
             'donations_count' => $donationsMade->count(),
             'events_attended_count' => $eventsAttended->count(),
@@ -307,70 +397,22 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Get dashboard data for health experts
-     *
-     * @return array
-     */
     private function getHealthExpertDashboardData()
     {
-        // Get timestamp for upcoming events (current time and forward)
         $now = now();
+        $consultationsHandled = $this->consultationsHandled()->with('user')->latest('last_message_at')->get();
+        $activeRequestedConsultations = Consultation::where('status', '!=', 'completed')->whereNull('doctor_id')->latest('last_message_at')->get();
+        $averageRating = $this->consultationsHandled()->whereNotNull('rating')->avg('rating') ?? 0;
+        $followUpRequests = $this->consultationsHandled()->where('follow_up_requested', true)->latest('follow_up_requested_at')->get();
+        $donationsMade = $this->donation()->with('donationRequest')->latest()->get();
 
-        // Get consultations handled
-        $consultationsHandled = $this->consultationsHandled()
-            ->with('user')
-            ->latest('last_message_at')
-            ->get();
+        $eventsAttended = $this->joinedEvents()->with(['event'])
+            ->whereHas('event', fn($q) => $q->where('end_time', '<', $now))->get()
+            ->map(fn($ep) => $ep->event);
 
-        // Get active requested consultations (not handled yet)
-        $activeRequestedConsultations = Consultation::where('status', '!=', 'completed')
-            ->whereNull('doctor_id')
-            ->latest('last_message_at')
-            ->get();
-
-        // Calculate average rating from all rated consultations
-        $averageRating = $this->consultationsHandled()
-            ->whereNotNull('rating')
-            ->avg('rating') ?? 0;
-
-        // Get consultations with follow-up requests
-        $followUpRequests = $this->consultationsHandled()
-            ->where('follow_up_requested', true)
-            ->latest('follow_up_requested_at')
-            ->get();
-
-        // Get donations made
-        $donationsMade = $this->donation()
-            ->with('donationRequest')
-            ->latest()
-            ->get();
-
-        // Get events attended
-        $eventsAttended = $this->joinedEvents()
-            ->with(['event'])
-            ->whereHas('event', function ($query) use ($now) {
-                $query->where('end_time', '<', $now);
-            })
-            ->get()
-            ->map(function ($eventParticipant) {
-                return $eventParticipant->event;
-            });
-
-        // Get upcoming events
-        $upcomingEvents = $this->joinedEvents()
-            ->with(['event'])
-            ->whereHas('event', function ($query) use ($now) {
-                $query->where('start_time', '>', $now);
-            })
-            ->get()
-            ->map(function ($eventParticipant) {
-                return $eventParticipant->event;
-            })
-            ->sortBy('start_time');
-
-        // Get first three most recent consultations accepted
-        $firstThreeRecentConsultationsAccepted = $consultationsHandled->take(3);
+        $upcomingEvents = $this->joinedEvents()->with(['event'])
+            ->whereHas('event', fn($q) => $q->where('start_time', '>', $now))->get()
+            ->map(fn($ep) => $ep->event)->sortBy('start_time');
 
         return [
             'consultations_handled' => $consultationsHandled,
@@ -380,7 +422,7 @@ class User extends Authenticatable
             'donations_made' => $donationsMade,
             'events_attended' => $eventsAttended,
             'upcoming_events' => $upcomingEvents,
-            'first_three_recent_consultations_accepted' => $firstThreeRecentConsultationsAccepted,
+            'first_three_recent_consultations_accepted' => $consultationsHandled->take(3),
             'consultations_handled_count' => $consultationsHandled->count(),
             'active_consultations_count' => $activeRequestedConsultations->count(),
             'follow_up_requests_count' => $followUpRequests->count(),
@@ -390,55 +432,25 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Get dashboard data for charities
-     *
-     * @return array
-     */
     private function getCharityDashboardData()
     {
-        // Get timestamp for upcoming events (current time and forward)
         $now = now();
-
-        // Get donation requests created by this charity
         $donationRequests = $this->donationRequests()->get();
-
-        // Get all donations received
-        $donationsReceived = Donation::whereIn('donation_request_id', $donationRequests->pluck('_id'))
-            ->with(['user', 'donationRequest'])
-            ->get();
-
-        // Calculate total amount raised from donations
+        $donationsReceived = Donation::whereIn('donation_request_id', $donationRequests->pluck('_id'))->with(['user', 'donationRequest'])->get();
         $totalAmountRaised = $donationsReceived->sum('amount');
+        $ongoingDonations = $donationRequests->where('status', 'active');
 
-        // Get ongoing donation requests (status is active/ongoing)
-        $ongoingDonations = $donationRequests->where('status', 'active')->values();
-
-        // Get upcoming events
-        $upcomingEvents = $this->joinedEvents()
-            ->with(['event'])
-            ->whereHas('event', function ($query) use ($now) {
-                $query->where('start_time', '>', $now);
-            })
-            ->get()
-            ->map(function ($eventParticipant) {
-                return $eventParticipant->event;
-            })
-            ->sortBy('start_time');
-
-        // Get first three ongoing donation requests
-        $firstThreeOngoingDonations = $ongoingDonations->take(3);
-
-        // Get first three upcoming events
-        $firstThreeUpcomingEvents = $upcomingEvents->take(3);
+        $upcomingEvents = $this->joinedEvents()->with(['event'])
+            ->whereHas('event', fn($q) => $q->where('start_time', '>', $now))->get()
+            ->map(fn($ep) => $ep->event)->sortBy('start_time');
 
         return [
             'donations_received' => $donationsReceived,
             'total_amount_raised' => $totalAmountRaised,
             'ongoing_donations' => $ongoingDonations,
             'upcoming_events' => $upcomingEvents,
-            'first_three_ongoing_donations' => $firstThreeOngoingDonations,
-            'first_three_upcoming_events' => $firstThreeUpcomingEvents,
+            'first_three_ongoing_donations' => $ongoingDonations->take(3),
+            'first_three_upcoming_events' => $upcomingEvents->take(3),
             'donations_received_count' => $donationsReceived->count(),
             'donation_requests_count' => $donationRequests->count(),
             'ongoing_donations_count' => $ongoingDonations->count(),
@@ -446,48 +458,21 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Get dashboard data for community organizations
-     *
-     * @return array
-     */
     private function getCommunityDashboardData()
     {
-        // Get timestamp for upcoming events and current year
         $now = now();
         $currentYear = $now->year;
-
-        // Get events hosted by this community
         $eventsHosted = $this->createdEvents()->get();
-
-        // Get events hosted this year
-        $eventsHostedThisYear = $eventsHosted->filter(function ($event) use ($currentYear) {
-            return $event->created_at->year === $currentYear;
-        })->values();
-
-        // Get upcoming events
-        $upcomingEvents = $eventsHosted->filter(function ($event) use ($now) {
-            return $event->start_time > $now;
-        })->sortBy('start_time')->values();
-
-        // Get first three upcoming events
-        $firstThreeUpcomingEvents = $upcomingEvents->take(3);
-
-        // Top three events hosted (placeholder - to be implemented with rating/like logic)
-        $topThreeEventsHosted = $eventsHosted->take(3); // Placeholder until rating implementation
-
-        // Get community members
-        $members = CommunityMember::where('community_id', $this->id)
-            ->where('status', 'active')
-            ->with('user')
-            ->get();
+        $eventsHostedThisYear = $eventsHosted->filter(fn($event) => $event->created_at->year === $currentYear);
+        $upcomingEvents = $eventsHosted->filter(fn($event) => $event->start_time > $now)->sortBy('start_time');
+        $members = CommunityMember::where('community_id', $this->id)->where('status', 'active')->with('user')->get();
 
         return [
             'members' => $members,
             'events_hosted_this_year' => $eventsHostedThisYear,
             'upcoming_events' => $upcomingEvents,
-            'first_three_upcoming_events' => $firstThreeUpcomingEvents,
-            'top_three_events_hosted' => $topThreeEventsHosted,
+            'first_three_upcoming_events' => $upcomingEvents->take(3),
+            'top_three_events_hosted' => $eventsHosted->take(3),
             'members_count' => $members->count(),
             'events_hosted_count' => $eventsHosted->count(),
             'events_hosted_this_year_count' => $eventsHostedThisYear->count(),

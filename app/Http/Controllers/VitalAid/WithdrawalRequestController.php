@@ -83,19 +83,7 @@ class WithdrawalRequestController extends Controller
 
             $recipientCode = $recipientResponse['data']['recipient_code'];
 
-            // Initiate transfer
-            $transferResponse = $this->paystackService->initiateTransfer(
-                $request->amount,
-                $recipientCode,
-                "Withdrawal from donation request: {$donationRequest->title}"
-            );
 
-            if (!$transferResponse['status']) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to initiate transfer: ' . $transferResponse['message'],
-                ], 500);
-            }
 
             // Create withdrawal request record
             $withdrawalRequest = WithdrawalRequest::create([
@@ -103,8 +91,8 @@ class WithdrawalRequestController extends Controller
                 'org_id' => $user->id,
                 'amount' => $request->amount,
                 'bank_details' => $request->bank_details,
-                'status' => 'pending', // Will be updated by webhook or manual verification
-                'payout_reference' => $transferResponse['data']['reference'],
+                'status' => 'pending', // Will be manually approved by admin
+                'recipient_code' => $recipientCode, // Store for manual transfer
             ]);
 
             // Update donation request withdrawn amount
@@ -114,7 +102,7 @@ class WithdrawalRequestController extends Controller
             // Notify organization
             $user->notify(new GeneralNotification([
                 'title' => 'Withdrawal Initiated',
-                'body' => "Your withdrawal request for {$request->amount} from '{$donationRequest->title}' has been initiated.",
+                'body' => "Your withdrawal request for {$request->amount} from '{$donationRequest->title}' is pending admin approval.",
                 'type' => 'general',
                 'extra' => [
                     'withdrawal_id' => $withdrawalRequest->id,
@@ -126,7 +114,6 @@ class WithdrawalRequestController extends Controller
                 'message' => 'Withdrawal request initiated.',
                 'data' => [
                     'withdrawal' => new WithdrawalRequestResource($withdrawalRequest),
-                    'transfer_reference' => $transferResponse['data']['reference'],
                 ]
             ], 201);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -174,36 +161,36 @@ class WithdrawalRequestController extends Controller
     /**
      * Admin retrieves all withdrawal requests
      */
-    public function listAll(Request $request)
-    {
-        // Check if user is admin
-        $user = $request->user();
-        if ($user->role !== 'admin') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.'
-            ], 403);
-        }
+    // public function listAll(Request $request)
+    // {
+    //     // Check if user is admin
+    //     $user = $request->user();
+    //     if ($user->role !== 'admin') {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Unauthorized.'
+    //         ], 403);
+    //     }
 
-        try {
-            $withdrawals = WithdrawalRequest::with(['donationRequest', 'organization'])
-                ->orderBy('created_at', 'desc')
-                ->get();
+    //     try {
+    //         $withdrawals = WithdrawalRequest::with(['donationRequest', 'organization'])
+    //             ->orderBy('created_at', 'desc')
+    //             ->get();
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'withdrawals' => WithdrawalRequestResource::collection($withdrawals)
-                ]
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch all withdrawals: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch withdrawal records.'
-            ], 500);
-        }
-    }
+    //         return response()->json([
+    //             'success' => true,
+    //             'data' => [
+    //                 'withdrawals' => WithdrawalRequestResource::collection($withdrawals)
+    //             ]
+    //         ], 200);
+    //     } catch (\Exception $e) {
+    //         Log::error('Failed to fetch all withdrawals: ' . $e->getMessage());
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Failed to fetch withdrawal records.'
+    //         ], 500);
+    //     }
+    // }
 
     /**
      * Check withdrawal status manually
@@ -223,50 +210,23 @@ class WithdrawalRequestController extends Controller
                 ], 403);
             }
 
+
             // Only check if withdrawal is still pending
             if ($withdrawal->status !== 'pending') {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Withdrawal status is already finalized.',
+                    'message' => 'Withdrawal status: ' . $withdrawal->status,
                     'data' => [
                         'withdrawal' => new WithdrawalRequestResource($withdrawal)
                     ]
                 ], 200);
             }
 
-            // Check status with Paystack
-            $transferStatus = $this->paystackService->verifyTransfer($withdrawal->payout_reference);
-
-            if (!$transferStatus['status']) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to verify transfer status.'
-                ], 500);
-            }
-
-            // Update withdrawal status based on Paystack response
-            $paystackStatus = $transferStatus['data']['status'];
-
-            if ($paystackStatus === 'success') {
-                $withdrawal->status = 'completed';
-            } elseif (in_array($paystackStatus, ['failed', 'reversed'])) {
-                $withdrawal->status = 'failed';
-
-                // If failed, revert the withdrawn amount
-                $donationRequest = $withdrawal->donationRequest;
-                $donationRequest->withdrawn_amount -= $withdrawal->amount;
-                $donationRequest->save();
-            }
-            // Keep as pending if status is 'pending' or 'processing'
-
-            $withdrawal->save();
-
             return response()->json([
                 'success' => true,
-                'message' => 'Withdrawal status updated.',
+                'message' => 'Withdrawal is pending admin approval.',
                 'data' => [
-                    'withdrawal' => new WithdrawalRequestResource($withdrawal),
-                    'paystack_status' => $paystackStatus
+                    'withdrawal' => new WithdrawalRequestResource($withdrawal)
                 ]
             ], 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

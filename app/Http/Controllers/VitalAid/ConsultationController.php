@@ -502,4 +502,30 @@ class ConsultationController extends Controller
             return $this->jsonResponse(false, 'Failed to fetch expert consultations.', null, 500);
         }
     }
+
+
+    public function getMessages(Request $request, $id)
+    {
+        $user = $request->user();
+
+        try {
+            $consultation = Consultation::findOrFail($id);
+
+            // Check if user has access to this consultation
+            if ($consultation->user_id != $user->id && $consultation->doctor_id != $user->id) {
+                return $this->jsonResponse(false, 'Unauthorized for this consultation.', null, 403);
+            }
+
+            $messages = $consultation->messages ?? [];
+
+            return $this->jsonResponse(true, 'Messages fetched successfully.', [
+                'messages' => $messages
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->jsonResponse(false, 'Consultation not found.', null, 404);
+        } catch (\Exception $e) {
+            Log::error("Failed to fetch messages for consultation {$id} by user {$user->id}: {$e->getMessage()}");
+            return $this->jsonResponse(false, 'Failed to fetch messages.', null, 500);
+        }
+    }
 }

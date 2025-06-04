@@ -233,7 +233,7 @@ class UserController extends Controller
     {
         try {
             $user = $request->user();
-            $donations = $user->donations()->get(); // Fixed method name from donation() to donations()
+            $donations = $user->donation()->get(); // Fixed method name from donation() to donations()
 
             return response()->json([
                 'success' => true,

@@ -422,7 +422,7 @@ class CommunityController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'body' => 'required|string',
-            'type' => 'sometimes|string|default:community_announcement',
+            'type' => 'sometimes|string',
         ]);
 
         if ($validator->fails()) {
@@ -457,13 +457,12 @@ class CommunityController extends Controller
             // Send notification to each member
             foreach ($members as $member) {
                 // Skip self-notification (admin)
-                if ($member->user_id !== $user->id) {
+
                     $member->user->notify(new GeneralNotification($notificationData));
-                }
             }
 
             return $this->successResponse([
-                'members_notified' => $members->count() - 1 // Exclude self
+                'members_notified' => $members->count() // Exclude self
             ], 'Notifications sent to all community members.');
         } catch (\Exception $e) {
             Log::error('Failed to send community notifications: ' . $e->getMessage());
