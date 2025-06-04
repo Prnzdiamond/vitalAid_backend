@@ -12,9 +12,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
-    <!-- Scripts -->
-    @vite(['resources/css/admin.css', 'resources/js/admin.js'])
-
     <!-- Additional Styles -->
     @stack('styles')
 </head>
