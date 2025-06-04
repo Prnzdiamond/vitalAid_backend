@@ -1,0 +1,67 @@
+[
+    {
+      "org_id": "68407d4a486e7bd726015a12",
+      "title": "FUNAAB Medical Aid Drive",
+      "description": "Raising funds to provide medical aid for low-income students at FUNAAB Health Centre.",
+      "amount_needed": 500000,
+      "amount_received": 125000,
+      "withdrawn_amount": 0,
+      "status": "active",
+      "banner_url": "https://images.unsplash.com/photo-1603398493319-2f5b31e7e17f",
+      "other_images": [],
+      "category": "Health",
+      "is_urgent": true
+    },
+    {
+      "org_id": "68407d4a486e7bd726015a12",
+      "title": "Feeding Program for Alabata Village",
+      "description": "Support our monthly feeding outreach to the Alabata community near FUNAAB.",
+      "amount_needed": 200000,
+      "amount_received": 50000,
+      "withdrawn_amount": 10000,
+      "status": "active",
+      "banner_url": "https://images.unsplash.com/photo-1605296867304-46d5465a13f1",
+      "other_images": [],
+      "category": "Hunger",
+      "is_urgent": false
+    },
+    {
+      "org_id": "68407d4a486e7bd726015a12",
+      "title": "Hostel Fire Recovery Fund",
+      "description": "Assist students affected by the recent fire outbreak at Isolu Hostel.",
+      "amount_needed": 300000,
+      "amount_received": 150000,
+      "withdrawn_amount": 50000,
+      "status": "active",
+      "banner_url": "https://images.unsplash.com/photo-1581093588401-1e7e8fda09b8",
+      "other_images": [],
+      "category": "Emergency",
+      "is_urgent": true
+    },
+    {
+      "org_id": "68407d4a486e7bd726015a12",
+      "title": "Scholarship for Orphaned Students",
+      "description": "Funding tuition fees for orphans studying at FUNAAB.",
+      "amount_needed": 800000,
+      "amount_received": 500000,
+      "withdrawn_amount": 300000,
+      "status": "active",
+      "banner_url": "https://images.unsplash.com/photo-1596495577886-d920f1fb7238",
+      "other_images": [],
+      "category": "Education",
+      "is_urgent": false
+    },
+    {
+      "org_id": "68407d4a486e7bd726015a12",
+      "title": "Sanitary Pads for Girls Initiative",
+      "description": "Empowering young girls with hygiene kits in Odeda and Abeokuta North.",
+      "amount_needed": 100000,
+      "amount_received": 85000,
+      "withdrawn_amount": 30000,
+      "status": "active",
+      "banner_url": "https://images.unsplash.com/photo-1588776814546-d97f7f5d4dcd",
+      "other_images": [],
+      "category": "Women Empowerment",
+      "is_urgent": false
+    }
+  ]
