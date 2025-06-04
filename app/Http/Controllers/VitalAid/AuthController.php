@@ -349,8 +349,8 @@ class AuthController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|unique:users|max:255',
-            'phone_number' => 'required|regex:/^\+?[1-9]\d{1,14}$/',
-            '_tag' => 'required|regex:/^[a-zA-Z0-9*]{3,30}$/|unique:users,_tag',
+            'phone_number' => 'required|string|regex:/^[\+]?[\s\-\(\)0-9]{7,20}$/',
+            '_tag' => 'required|string|max:25|unique:users,_tag',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|in:user,health_expert,charity,community',
         ];
@@ -402,7 +402,7 @@ class AuthController extends Controller
         $baseRules = [
             'first_name' => 'nullable|string|max:255',
             'last_name' => 'nullable|string|max:255',
-            'phone_number' => 'nullable|regex:/^\+?[1-9]\d{1,14}$/',
+            'phone_number' => 'nullable|string|regex:/^[\+]?[\s\-\(\)0-9]{7,20}$/',
             'password' => 'nullable|string|min:8|confirmed',
         ];
 
