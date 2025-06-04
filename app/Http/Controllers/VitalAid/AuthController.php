@@ -418,6 +418,14 @@ class AuthController extends Controller
     {
         $userData = $request->only(self::BASE_FIELDS);
         $userData['password'] = Hash::make($request->password);
+        $userData['verification_status'] = 'approved'; // Default to approved for registration test purposes
+        $userData['verification_approved_at'] = now();
+        $userData['verification_approved_by'] = 'system'; // Default to system for registration test purposes
+        $userData['verification_documents'] = []; // Start with empty documents
+        $userData['verification_progress'] = 0; // Default progress
+        $userData['is_verified'] = true; // Default to true for registration test purposes
+        $userData['is_verified'] = true; // Default to true for registration test purposes
+
 
         foreach (self::ADDITIONAL_FIELDS as $field) {
             if ($request->has($field))

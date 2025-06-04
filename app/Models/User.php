@@ -42,6 +42,7 @@ class User extends Authenticatable
         'qualifications',
         'available_hours',
         'experience_years',
+        'email_verified_at',
         'registration_number',
         'founding_date',
         'mission_statement',
