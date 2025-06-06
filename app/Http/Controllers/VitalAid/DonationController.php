@@ -39,6 +39,8 @@ class DonationController extends Controller
             ], 422);
         }
 
+        return "hello";
+
         $user = $request->user();
 
         try {

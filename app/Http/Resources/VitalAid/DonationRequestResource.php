@@ -29,7 +29,7 @@ class DonationRequestResource extends JsonResource
             'is_urgent' => $this->is_urgent,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
-            'created_by' => $this->owner->_tag,
+            'created_by' => $this->owner->_tag ?? null,
             'donations_count' => $this->donations->count(),
             'donations' => DonationResource::collection($this->donations),
         ];
