@@ -131,6 +131,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // Donation requests (for orgs)
         Route::get('/request', [DonationRequestController::class, 'index']);
         Route::post('/request', [DonationRequestController::class, 'store']);
+        Route::post('/donate', [DonationController::class, 'donate']);
+        Route::get('/user', [UserController::class, 'userDonations']);
         Route::get('/request/{id}', [DonationRequestController::class, 'show']);
         Route::patch('/request/{id}', [DonationRequestController::class, 'update']);
         Route::delete('/request/{id}', [DonationRequestController::class, 'destroy']);
@@ -139,8 +141,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/request/mark-as-complete/{id}', [DonationRequestController::class, 'markAsCompleted']);
 
         // Donations
-        Route::post('/donate', [DonationController::class, 'donate']);
-        Route::get('/user', [UserController::class, 'userDonations']);
         Route::get('/organization/{id}', [DonationController::class, 'getOrganizationDonations']);
     });
 
